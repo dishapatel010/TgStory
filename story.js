@@ -106,8 +106,6 @@
 
     // If no keys belong to the user, return a response with the list of keys
     if (userKeys.length === 0) {
-      const allKeys = await kvStore.list();
-      //return new Response(`User not found.`, { status: 404 });
       return new Response(`<!DOCTYPE html>
 <html lang="en">
   <head>
