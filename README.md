@@ -1,0 +1,11 @@
+# TGStory
+---
+- Save and Deploy `story.js` to cf-worker
+- Create KV `IMAGES`
+- Bind to cf-worker as variable `IMAGES`
+- Create ENV var from cf-worker settings :
+- TOKEN : `BOT-TOKEN`
+- DOMAIN : `https://example.subdoamin.workers.dev/`
+- set webhook to cf-worker `https://api.telegram.org/botTOKEN/setWebhook?url=https://example.subdoamin.workers.dev/bot` make sure you are doing it to /bot
+- DONE! Send images to bot
+---
