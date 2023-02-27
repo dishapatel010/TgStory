@@ -27,7 +27,7 @@
       photo,
       from
     } = JSON.parse(body).message;
-    const largestPhoto = photo.reduce((acc, cur) => cur.width > acc.width || cur.height > acc.height ? cur : acc, {
+    const largestPhoto = photo.reduce((acc, cur) => (cur.width * cur.height) > (acc.width * acc.height) ? cur : acc, {
       width: 0,
       height: 0
     });
