@@ -27,6 +27,23 @@
       photo,
       from
     } = JSON.parse(body).message;
+    if (!photo) {
+      const tgResponse = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: 'POST',
+        body: JSON.stringify({
+          chat_id: chat.id,
+          text: `Give Photo`,
+          reply_to_message_id: message_id
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      return new Response('', {
+        status: 200
+      })
+    }
     const largestPhoto = photo.reduce((acc, cur) => (cur.width * cur.height) > (acc.width * acc.height) ? cur : acc, {
       width: 0,
       height: 0
@@ -264,7 +281,7 @@
     </style>
   </head>
   <body>
-    <div id="slideshow-container" onclick="currentSlideIndex = (currentSlideIndex + 1) % slides.length; updateSlideshow();"> ${images .map( (image, index) => ` <div class="slide ${index === 0 ? 'active' : ''}" id="${index}">
+    <div id="slideshow-container" onclick="nextSlide();"> ${images .map( (image, index) => ` <div class="slide ${index === 0 ? 'active' : ''}" id="${index}">
         <img src="${image.url}" alt="Slide ${index + 1}">
       </div>` ) .join('')} </div>
     <script>
@@ -274,11 +291,11 @@
 
       function startSlideshow() {
         setInterval(() => {
-          updateSlideshow();
+          nextSlide();
         }, 5000);
       }
 
-      function updateSlideshow() {
+      function nextSlide() {
         slides[currentSlideIndex].classList.remove('active');
         currentSlideIndex = (currentSlideIndex + 1) % slides.length;
         slides[currentSlideIndex].classList.add('active');
