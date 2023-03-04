@@ -33,7 +33,9 @@
         JSON.stringify({
           method: "sendMessage",
           chat_id: chat.id,
-          text: `Give Photo`,
+          text: `Hello, Stories in Telegram. Send new photos or videos & share the link with your friends - and you're done!\n\nDrop Star ⭐ [TgStory](https://github.com/dishapatel010/TgStory)`,
+          parse_mode: "MARKDOWN",
+          disable_web_page_preview: "True",
           reply_to_message_id: message_id
         }), {
           status: 200,
@@ -212,6 +214,13 @@
       .slideshow-button.active {
         background-color: #000;
       }
+      amp-story-grid-layer {
+        align-items: center;
+        justify-content: center;
+      }
+      amp-story-page amp-img {
+        object-fit: cover;
+      }
       @media screen and (max-width: 768px) {
         .slide {
           font-size: 2em;
@@ -223,20 +232,38 @@
         }
       }
     </style>
+<style amp-custom>
+  /* Set a standard size for amp-img elements */
+  amp-img {
+    max-width: 100vw;
+    max-height: 90vh;
+  }
+  
+  /* Rotate the image if it exceeds the standard size */
+  amp-img[height][width] {
+    object-fit: contain;
+    transform: rotate(90deg);
+  }
+</style>
   </head>
   <body>
     <amp-story standalone
-               title="Fstoriesbot"
-               publisher="YOUR NAME"
-               publisher-logo-src="https://example.com/logo.png"
-               poster-portrait-src="https://example.com/poster-portrait.png"
-               poster-square-src="https://example.com/poster-square.png">
-      ${images.map((image, index) => `
-        <amp-story-page id="${index}">
-          <amp-img src="${image.url}" alt="Slide ${index + 1}" layout="fill"></amp-img>
-        </amp-story-page>
-      `).join('')}
-    </amp-story>
+           title="Fstoriesbot"
+           publisher="IsThisUser"
+           publisher-logo-src="https://example.com/logo.png"
+           poster-portrait-src="https://example.com/poster-portrait.png"
+           poster-square-src="https://example.com/poster-square.png">
+  ${images.map((image, index) => `
+    <amp-story-page id="${index}">
+      <amp-story-grid-layer template="fill">
+        <amp-img src="${image.url}" alt="Slide ${index + 1}" layout="fill" object-fit="contain"></amp-img>
+        <amp-image-lightbox layout="nodisplay">
+          <amp-img src="${image.url}" layout="responsive"></amp-img>
+        </amp-image-lightbox>
+      </amp-story-grid-layer>
+    </amp-story-page>
+  `).join('')}
+</amp-story>
 <script>
 const slides = document.querySelectorAll('.slide');
 const buttons = document.querySelectorAll('.slideshow-button');
