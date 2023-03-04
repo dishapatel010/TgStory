@@ -20,28 +20,25 @@
     const graphApiUrl = 'https://graph.org/upload'
     const storyi = DOMAIN // ENV VAR
 
-    const body = await request.clone().text()
+    const body = await request.json()
     const {
       message_id,
       chat,
       photo,
       from
-    } = JSON.parse(body).message;
+    } = body.message;
     if (!photo) {
-      const tgResponse = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-        method: 'POST',
-        body: JSON.stringify({
+      return new Response(
+        JSON.stringify({
+          method: "sendMessage",
           chat_id: chat.id,
           text: `Give Photo`,
           reply_to_message_id: message_id
-        }),
+        }), {
+        status: 200,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json; charset=UTF-8'
         }
-      })
-
-      return new Response('', {
-        status: 200
       })
     }
     const largestPhoto = photo.reduce((acc, cur) => (cur.width * cur.height) > (acc.width * acc.height) ? cur : acc, {
@@ -79,20 +76,17 @@
       expirationTtl: secondsFromNow
     }) //KV IMAGES
 
-    const tgResponse = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-      method: 'POST',
-      body: JSON.stringify({
-        chat_id: chat.id,
-        text: `Uploaded photo: ${storyi}${chat.id}`,
-        reply_to_message_id: message_id
-      }),
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-
-    return new Response('', {
-      status: 200
+    return new Response(
+        JSON.stringify({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: `Uploaded photo: ${storyi}${chat.id}`,
+          reply_to_message_id: message_id
+        }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8'
+        }
     })
   }
 
