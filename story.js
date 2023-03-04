@@ -126,8 +126,6 @@
 
     // If no keys belong to the user, return a response with the list of keys
     if (userKeys.length === 0) {
-      const allKeys = await kvStore.list();
-      //return new Response(`User not found.`, { status: 404 });
       return new Response(`<!DOCTYPE html><html lang="en"> <head> <meta charset="UTF-8"> <title>Not Found</title> <meta name="viewport" content="width=device-width, initial-scale=1"> <style> html { height: 100%; } body { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: sans-serif; color: #888; height: 100%; margin: 0; padding: 0; } h1 { font-size: 2em; color: #555; font-weight: 400; margin-bottom: 0.5em; } p { font-size: 1em; margin: 0; } @media only screen and (max-width: 280px) { h1 { font-size: 1.5em; } } </style> </head> <body> <h1>ID Not Found</h1> <p>Sorry, the ID you are looking for could not be found. Please try again.</p> </body></html>`, {
         headers: {
           'Content-Type': 'text/html'
