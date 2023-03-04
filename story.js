@@ -20,14 +20,15 @@
     const graphApiUrl = 'https://graph.org/upload'
     const storyi = DOMAIN // ENV VAR
 
-    const body = await request.json()
+    const originalRequest = request.clone()
+    const body = await originalRequest.json()
     const {
       message_id,
       chat,
       photo,
       from
     } = body.message;
-    if (!photo) {
+    if (!photo || photo.length === 0) {
       return new Response(
         JSON.stringify({
           method: "sendMessage",
@@ -35,11 +36,11 @@
           text: `Give Photo`,
           reply_to_message_id: message_id
         }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8'
-        }
-      })
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8'
+          }
+        })
     }
     const largestPhoto = photo.reduce((acc, cur) => (cur.width * cur.height) > (acc.width * acc.height) ? cur : acc, {
       width: 0,
@@ -52,10 +53,10 @@
       result: {
         file_path
       }
-    } = await response.json()
+    } = await response.clone().json()
 
     const fileResponse = await fetch(`https://api.telegram.org/file/bot${tgToken}/${file_path}`)
-    const fileBuffer = await fileResponse.arrayBuffer()
+    const fileBuffer = await fileResponse.clone().arrayBuffer()
 
     const formData = new FormData()
     formData.append('file', new Blob([fileBuffer]))
@@ -64,7 +65,7 @@
       method: 'POST',
       body: formData
     })
-    const uploadJson = await uploadResponse.json()
+    const uploadJson = await uploadResponse.clone().json()
     const uploadUrl = `https://graph.org${uploadJson[0].src}`
 
     // Save the uploaded URL to a KV store using the user ID and a unique file ID as the key
@@ -77,17 +78,17 @@
     }) //KV IMAGES
 
     return new Response(
-        JSON.stringify({
-          method: "sendMessage",
-          chat_id: chat.id,
-          text: `Uploaded photo: ${storyi}${chat.id}`,
-          reply_to_message_id: message_id
-        }), {
+      JSON.stringify({
+        method: "sendMessage",
+        chat_id: chat.id,
+        text: `Uploaded photo: ${storyi}${chat.id}`,
+        reply_to_message_id: message_id
+      }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json; charset=UTF-8'
         }
-    })
+      })
   }
 
   async function handleMainRequest(request) {
@@ -117,53 +118,9 @@
 
     // If no keys belong to the user, return a response with the list of keys
     if (userKeys.length === 0) {
-      return new Response(`<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>Not Found</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      html {
-        height: 100%;
-      }
-
-      body {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        font-family: sans-serif;
-        color: #888;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
-
-      h1 {
-        font-size: 2em;
-        color: #555;
-        font-weight: 400;
-        margin-bottom: 0.5em;
-      }
-
-      p {
-        font-size: 1em;
-        margin: 0;
-      }
-
-      @media only screen and (max-width: 280px) {
-        h1 {
-          font-size: 1.5em;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <h1>ID Not Found</h1>
-    <p>Sorry, the ID you are looking for could not be found. Please try again.</p>
-  </body>
-</html>`, {
+      const allKeys = await kvStore.list();
+      //return new Response(`User not found.`, { status: 404 });
+      return new Response(`<!DOCTYPE html><html lang="en"> <head> <meta charset="UTF-8"> <title>Not Found</title> <meta name="viewport" content="width=device-width, initial-scale=1"> <style> html { height: 100%; } body { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: sans-serif; color: #888; height: 100%; margin: 0; padding: 0; } h1 { font-size: 2em; color: #555; font-weight: 400; margin-bottom: 0.5em; } p { font-size: 1em; margin: 0; } @media only screen and (max-width: 280px) { h1 { font-size: 1.5em; } } </style> </head> <body> <h1>ID Not Found</h1> <p>Sorry, the ID you are looking for could not be found. Please try again.</p> </body></html>`, {
         headers: {
           'Content-Type': 'text/html'
         },
@@ -191,25 +148,25 @@
     return `<!DOCTYPE html>
 <html>
   <head>
-    <title>Slideshow </title>
+    <title>Fstoriesbot</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,minimum-scale=1">
+    <script async src="https://cdn.ampproject.org/v0.js"></script>
+    <script async custom-element="amp-story" src="https://cdn.ampproject.org/v0/amp-story-1.0.js"></script>
     <style>
       body {
         margin: 0;
         padding: 0;
         font-family: sans-serif;
         background-color: #f5f5f5;
-        /* Change body background color to distinguish from buttons */
       }
-
       #slideshow-container {
         width: 100%;
         height: 100vh;
         position: relative;
         overflow: hidden;
         cursor: pointer;
-        /* Add cursor pointer to the slideshow container */
       }
-
       .slide {
         width: 100%;
         height: 100%;
@@ -227,16 +184,13 @@
         color: #fff;
         font-size: 3em;
       }
-
       .slide.active {
         opacity: 1;
       }
-
       img {
         max-width: 100%;
         max-height: 100%;
       }
-
       #slideshow-navigation {
         position: absolute;
         bottom: 20px;
@@ -246,7 +200,6 @@
         justify-content: center;
         align-items: center;
       }
-
       .slideshow-button {
         background-color: #fff;
         border: none;
@@ -256,17 +209,14 @@
         margin: 10px;
         cursor: pointer;
       }
-
       .slideshow-button.active {
         background-color: #000;
       }
-
       @media screen and (max-width: 768px) {
         .slide {
           font-size: 2em;
         }
       }
-
       @media screen and (max-width: 480px) {
         .slide {
           font-size: 1.5em;
@@ -275,32 +225,66 @@
     </style>
   </head>
   <body>
-    <div id="slideshow-container" onclick="nextSlide();"> ${images .map( (image, index) => ` <div class="slide ${index === 0 ? 'active' : ''}" id="${index}">
-        <img src="${image.url}" alt="Slide ${index + 1}">
-      </div>` ) .join('')} </div>
-    <script>
-      const slides = document.querySelectorAll('.slide');
-      const buttons = document.querySelectorAll('.slideshow-button');
-      let currentSlideIndex = 0;
+    <amp-story standalone
+               title="Fstoriesbot"
+               publisher="YOUR NAME"
+               publisher-logo-src="https://example.com/logo.png"
+               poster-portrait-src="https://example.com/poster-portrait.png"
+               poster-square-src="https://example.com/poster-square.png">
+      ${images.map((image, index) => `
+        <amp-story-page id="${index}">
+          <amp-img src="${image.url}" alt="Slide ${index + 1}" layout="fill"></amp-img>
+        </amp-story-page>
+      `).join('')}
+    </amp-story>
+<script>
+const slides = document.querySelectorAll('.slide');
+const buttons = document.querySelectorAll('.slideshow-button');
+let currentSlideIndex = 0;
 
-      function startSlideshow() {
-        setInterval(() => {
-          nextSlide();
-        }, 5000);
-      }
+function startSlideshow() {
+  setInterval(() => {
+    updateSlideshow();
+  }, 5000);
+}
 
-      function nextSlide() {
-        slides[currentSlideIndex].classList.remove('active');
-        currentSlideIndex = (currentSlideIndex + 1) % slides.length;
-        slides[currentSlideIndex].classList.add('active');
-      }
+function updateSlideshow() {
+  slides[currentSlideIndex].classList.remove('active');
+  buttons[currentSlideIndex].classList.remove('active');
 
-      function init() {
-        startSlideshow();
-      }
-      window.addEventListener('load', init);
-    </script>
-  </body>
+  currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+
+  slides[currentSlideIndex].classList.add('active');
+  buttons[currentSlideIndex].classList.add('active');
+}
+
+function goToSlide(index) {
+  if (index < 0 || index >= slides.length) {
+    return;
+  }
+
+  slides[currentSlideIndex].classList.remove('active');
+  buttons[currentSlideIndex].classList.remove('active');
+
+  currentSlideIndex = index;
+
+  slides[currentSlideIndex].classList.add('active');
+  buttons[currentSlideIndex].classList.add('active');
+}
+
+function init() {
+  startSlideshow();
+
+  for (let i = 0; i < buttons.length; i++) {
+    buttons[i].addEventListener('click', () => {
+      goToSlide(i);
+    });
+  }
+}
+
+window.addEventListener('load', init);
+</script> 
+</body>
 </html>`;
   }
 })();
