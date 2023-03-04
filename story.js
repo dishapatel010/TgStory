@@ -28,6 +28,12 @@
       photo,
       from
     } = body.message;
+    let USERNAME;
+    if (from.username) {
+      USERNAME = from.username.toLowerCase();
+    } else {
+      USERNAME = from.id
+    }
     if (!photo || photo.length === 0) {
       return new Response(
         JSON.stringify({
@@ -73,7 +79,7 @@
     // Save the uploaded URL to a KV store using the user ID and a unique file ID as the key
     const fileIdParts = uploadJson[0].src.split('/')
     const fileUniqueId = fileIdParts[fileIdParts.length - 1].split('.')[0]
-    const kvKey = `${from.id}_${fileUniqueId}`
+    const kvKey = `${USERNAME}_${fileUniqueId}`
     const secondsFromNow = 86400 // 24 hours
     await IMAGES.put(kvKey, uploadUrl, {
       expirationTtl: secondsFromNow
@@ -83,7 +89,7 @@
       JSON.stringify({
         method: "sendMessage",
         chat_id: chat.id,
-        text: `Uploaded photo: ${storyi}${chat.id}`,
+        text: `Uploaded photo: ${storyi}${USERNAME}`,
         reply_to_message_id: message_id
       }), {
         status: 200,
@@ -95,7 +101,7 @@
 
   async function handleMainRequest(request) {
     const path = new URL(request.url).pathname;
-    const userId = path.substr(1);
+    const userId = path.substr(1).toLowerCase();
     const kvStore = IMAGES; //KV IMAGES
     const keysObj = await kvStore.list({
       prefix: `${userId}_`,
