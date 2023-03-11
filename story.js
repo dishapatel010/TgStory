@@ -26,6 +26,7 @@
       message_id,
       chat,
       photo,
+      video,
       from
     } = body.message;
     let USERNAME;
@@ -34,7 +35,7 @@
     } else {
       USERNAME = from.id
     }
-    if (!photo || photo.length === 0) {
+    if (!photo && !video) {
       return new Response(
         JSON.stringify({
           method: "sendMessage",
@@ -50,18 +51,59 @@
           }
         })
     }
-    const largestPhoto = photo.reduce((acc, cur) => (cur.width * cur.height) > (acc.width * acc.height) ? cur : acc, {
-      width: 0,
-      height: 0
-    });
-    const fileId = largestPhoto.file_id;
+    let largestFile;
+    let fileId;
+    if (photo && photo.length > 0) {
+      const largestFile = photo.reduce((acc, cur) => (cur.width * cur.height) > (acc.width * acc.height) ? cur : acc, {
+        width: 0,
+        height: 0
+      });
+      fileId = largestFile.file_id;
+    } else if (video) {
+      fileId = video.file_id;
+    }
+
+    if (!fileId) {
+      return new Response(
+        JSON.stringify({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: "Sorry, I could not find any files in your message. Please try again with an image or video file.",
+          parse_mode: "MARKDOWN",
+          disable_web_page_preview: "True",
+          reply_to_message_id: message_id
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8'
+          }
+        })
+    }
 
     const response = await fetch(`https://api.telegram.org/bot${tgToken}/getFile?file_id=${fileId}`)
     const {
       result: {
-        file_path
+        file_path,
+        file_size
       }
     } = await response.clone().json()
+
+    if (file_size > 5000000) { // 5 MB
+      return new Response(
+        JSON.stringify({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: `Sorry, the file size is too large. Please upload a file that is smaller than 5 MB.`,
+          parse_mode: "MARKDOWN",
+          disable_web_page_preview: "True",
+          reply_to_message_id: message_id
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8'
+          }
+        })
+    }
 
     const fileResponse = await fetch(`https://api.telegram.org/file/bot${tgToken}/${file_path}`)
     const fileBuffer = await fileResponse.clone().arrayBuffer()
@@ -81,15 +123,23 @@
     const fileUniqueId = fileIdParts[fileIdParts.length - 1].split('.')[0]
     const kvKey = `${USERNAME}_${fileUniqueId}`
     const secondsFromNow = 86400 // 24 hours
-    await IMAGES.put(kvKey, uploadUrl, {
-      expirationTtl: secondsFromNow
-    }) //KV IMAGES
+    if (photo && photo.length > 0) {
+      await IMAGES.put(kvKey, uploadUrl, {
+        expirationTtl: secondsFromNow
+      }) //KV IMAGES
+    } else if (video) {
+      await IMAGES.put(kvKey, uploadUrl, {
+        expirationTtl: secondsFromNow
+      }) // VIDTOKV
+    }
 
     return new Response(
       JSON.stringify({
         method: "sendMessage",
         chat_id: chat.id,
-        text: `Uploaded photo: ${storyi}${USERNAME}`,
+        text: `Your story has been uploaded successfully! Share the link with your friends:\n${storyi}${USERNAME}`,
+        parse_mode: "MARKDOWN",
+        disable_web_page_preview: "True",
         reply_to_message_id: message_id
       }), {
         status: 200,
@@ -134,15 +184,66 @@
       })
     }
 
-    const images = await Promise.all(userKeys.map(async (key) => {
-      const imageUrl = await kvStore.get(key.name);
-      return {
-        url: imageUrl,
-        id: key.name.split("_")[1]
-      };
-    }));
-    images.sort((a, b) => a.id - b.id);
-    const html = generateHtml(images);
+    const images = [];
+    const videos = [];
+
+    // Iterate through userKeys and populate images and videos arrays
+    for (const key of userKeys) {
+      const url = await kvStore.get(key.name);
+
+      if (url.endsWith(".jpg") || url.endsWith(".jpeg") || url.endsWith(".png")) {
+        images.push({
+          url: url,
+          id: key.name.split("_")[1]
+        });
+      } else if (url.endsWith(".mp4")) {
+        videos.push({
+          url: url,
+          id: key.name.split("_")[1]
+        });
+      }
+    }
+    // Merge the images and videos arrays
+    const media = [...images, ...videos];
+
+    // Sort the media array by ID
+    media.sort((a, b) => a.id - b.id);
+
+    // Generate the HTML for the media items
+    const mediaHtml = media
+      .map((item, index) => {
+        if (item.url.endsWith(".mp4")) {
+          // If it's a video, include an `amp-video` element
+          return `
+        <amp-story-page id="${index}">
+          <amp-story-grid-layer template="fill">
+            <amp-video autoplay
+              width="720"
+              height="1280"
+              layout="responsive"
+              poster="${item.url.replace(".mp4", ".jpg")}">
+              <source src="${item.url}" type="video/mp4">
+            </amp-video>
+          </amp-story-grid-layer>
+        </amp-story-page>
+      `;
+        } else {
+          // If it's an image, include an `amp-img` element
+          return `
+        <amp-story-page id="${index}">
+          <amp-story-grid-layer template="fill">
+            <amp-img src="${item.url}" alt="Slide ${index + 1}" layout="fill" object-fit="contain"></amp-img>
+            <amp-image-lightbox layout="nodisplay">
+              <amp-img src="${item.url}" layout="responsive"></amp-img>
+            </amp-image-lightbox>
+          </amp-story-grid-layer>
+        </amp-story-page>
+      `;
+        }
+      })
+      .join("");
+
+    const html = generateHtml(mediaHtml);
     return new Response(html, {
       headers: {
         "content-type": "text/html"
@@ -150,16 +251,16 @@
     });
   }
 
-  function generateHtml(images) {
+  function generateHtml(mediaHtml) {
     return `<!DOCTYPE html>
-<html>
-  <head>
-    <title>Fstoriesbot</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,minimum-scale=1">
-    <script async src="https://cdn.ampproject.org/v0.js"></script>
-    <script async custom-element="amp-story" src="https://cdn.ampproject.org/v0/amp-story-1.0.js"></script>
-    <style>
+  <html>
+    <head>
+      <title>Fstoriesbot</title>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width,minimum-scale=1">
+      <script async src="https://cdn.ampproject.org/v0.js"></script>
+      <script async custom-element="amp-story" src="https://cdn.ampproject.org/v0/amp-story-1.0.js"></script>
+      <style>
       body {
         margin: 0;
         padding: 0;
@@ -237,38 +338,29 @@
       }
     </style>
 <style amp-custom>
-  /* Set a standard size for amp-img elements */
-  amp-img {
-    max-width: 100vw;
-    max-height: 90vh;
-  }
-  
-  /* Rotate the image if it exceeds the standard size */
-  amp-img[height][width] {
-    object-fit: contain;
-    transform: rotate(90deg);
-  }
-</style>
-  </head>
+        /* Set a standard size for amp-img elements */
+        amp-img {
+          max-width: 100vw;
+          max-height: 90vh;
+        }
+
+        /* Rotate the image if it exceeds the standard size */
+        amp-img[height][width] {
+          object-fit: contain;
+          transform: rotate(90deg);
+        }
+      </style>
+    </head>
   <body>
-    <amp-story standalone
-           title="Fstoriesbot"
-           publisher="IsThisUser"
-           publisher-logo-src="https://example.com/logo.png"
-           poster-portrait-src="https://example.com/poster-portrait.png"
-           poster-square-src="https://example.com/poster-square.png">
-  ${images.map((image, index) => `
-    <amp-story-page id="${index}">
-      <amp-story-grid-layer template="fill">
-        <amp-img src="${image.url}" alt="Slide ${index + 1}" layout="fill" object-fit="contain"></amp-img>
-        <amp-image-lightbox layout="nodisplay">
-          <amp-img src="${image.url}" layout="responsive"></amp-img>
-        </amp-image-lightbox>
-      </amp-story-grid-layer>
-    </amp-story-page>
-  `).join('')}
-</amp-story>
-<script>
+      <amp-story standalone
+                 title="Fstoriesbot"
+                 publisher="IsThisUser"
+                 publisher-logo-src="https://example.com/logo.png"
+                 poster-portrait-src="https://example.com/poster-portrait.png"
+                 poster-square-src="https://example.com/poster-square.png">
+        ${mediaHtml}
+      </amp-story>
+      <script>
 const slides = document.querySelectorAll('.slide');
 const buttons = document.querySelectorAll('.slideshow-button');
 let currentSlideIndex = 0;
