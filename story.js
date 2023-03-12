@@ -22,6 +22,14 @@
 
     const originalRequest = request.clone()
     const body = await originalRequest.json()
+    if (!body || !body.message) {
+      return new Response(`ok`, {
+        headers: {
+          'Content-Type': 'text/html'
+        },
+        status: 200
+      });
+    }
     const {
       message_id,
       chat,
@@ -151,7 +159,26 @@
 
   async function handleMainRequest(request) {
     const path = new URL(request.url).pathname;
-    const userId = path.substr(1).toLowerCase();
+    const pathParts = path.split("/").filter(Boolean);
+
+    // Get the userId and isInstantView based on the pathParts
+    let userId, isInstantView;
+    if (pathParts.length === 1) {
+      userId = pathParts[0].toLowerCase();
+      isInstantView = false;
+    } else if (pathParts.length === 2 && pathParts[1].toLowerCase() === "iv") {
+      userId = pathParts[0].toLowerCase();
+      isInstantView = true;
+    } else {
+      // Invalid URL
+      return new Response(`404 not found`, {
+        headers: {
+          'Content-Type': 'text/html'
+        },
+        status: 404
+      });
+    }
+
     const kvStore = IMAGES; //KV IMAGES
     const keysObj = await kvStore.list({
       prefix: `${userId}_`,
@@ -161,18 +188,6 @@
     const names = keys.map(key => key.name);
 
     const userKeys = keys.filter(key => key.name.toLowerCase().startsWith(userId.toLowerCase() + "_"));
-
-    /* If the request is for the general route, display all images
-    if (userId === "") {
-      const images = await Promise.all(keys.map(async (key) => {
-        const imageUrl = await kvStore.get(key.name);
-        //console.log("Image URL:", imageUrl);
-        return { url: imageUrl, id: key.name.split("_")[1] };
-      }));
-      images.sort((a, b) => a.id - b.id);
-      const html = generateHtml(images);
-      return new Response(html, { headers: { "content-type": "text/html" } });
-    }*/
 
     // If no keys belong to the user, return a response with the list of keys
     if (userKeys.length === 0) {
@@ -209,12 +224,38 @@
     // Sort the media array by ID
     media.sort((a, b) => a.id - b.id);
 
-    // Generate the HTML for the media items
-    const mediaHtml = media
-      .map((item, index) => {
-        if (item.url.endsWith(".mp4")) {
-          // If it's a video, include an `amp-video` element
-          return `
+    let html;
+
+    if (isInstantView) {
+      // Generate the HTML for the media items using Instant View template
+      const mediaHtml = media
+        .map((item, index) => {
+          if (item.url.endsWith(".mp4")) {
+            // If it's a video, include an `video` element
+            return `
+            <video controls="" loop="" width="100%" height="100%">
+              <source src="${item.url}" type="video/mp4">
+            </video>
+        `;
+          } else {
+            // If it's an image, include an `img` element
+            return `
+          <div class="image-container">
+            <img src="${item.url}" width="720" height="1280" alt="Slide ${index + 1}">
+          </div>
+        `;
+          }
+        })
+        .join("");
+
+      html = generateInstantViewHtml(mediaHtml, userId);
+    } else {
+      // Generate the HTML for the media items using regular template
+      const mediaHtml = media
+        .map((item, index) => {
+          if (item.url.endsWith(".mp4")) {
+            // If it's a video, include an `amp-video` element
+            return `
         <amp-story-page id="${index}">
           <amp-story-grid-layer template="fill">
             <amp-video autoplay
@@ -227,9 +268,9 @@
           </amp-story-grid-layer>
         </amp-story-page>
       `;
-        } else {
-          // If it's an image, include an `amp-img` element
-          return `
+          } else {
+            // If it's an image, include an `amp-img` element
+            return `
         <amp-story-page id="${index}">
           <amp-story-grid-layer template="fill">
             <amp-img src="${item.url}" alt="Slide ${index + 1}" layout="fill" object-fit="contain"></amp-img>
@@ -239,11 +280,13 @@
           </amp-story-grid-layer>
         </amp-story-page>
       `;
-        }
-      })
-      .join("");
+          }
+        })
+        .join("");
 
-    const html = generateHtml(mediaHtml);
+      html = generateRegularHtml(mediaHtml, userId);
+    }
+
     return new Response(html, {
       headers: {
         "content-type": "text/html"
@@ -251,13 +294,94 @@
     });
   }
 
-  function generateHtml(mediaHtml) {
+  function generateInstantViewHtml(mediaHtml, userId) {
+    return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+        <meta name="title" content="${userId}'s stories">
+        <meta name="author" content="${userId}">
+        <meta name="description" content="Check out ${userId}'s latest stories!">
+        <meta property="og:title" content="${userId}'s stories">
+        <meta property="og:description" content="Check out ${userId}'s latest stories!">
+        <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
+        <meta property="og:site_name" content="TG-Stories" />
+        <meta property="og:type" content="article">
+        <meta property="og:locale" content="en_IN" />
+        <meta property="article:published_time" content="${new Date().toISOString()}">
+        <meta property="article:author" content="${userId}">
+        <meta property="article:publisher" content="Fstoriesbot">
+        <meta property="article:section" content="Social Media">
+        <meta property="article:tag" content="Telegram">
+        <meta property="article:tag" content="Instant View">
+        <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
+        <meta property="article:tag" content="Stories">
+        <link rel="canonical" href="https://t.me/fstoriesbot">
+        <title>${userId}'s stories | Fstoriesbot</title>
+        <style>
+          body {
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+            color: #ffffff;
+          }
+          .media-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+          }
+          .image-container {
+            margin: 0;
+            padding: 0;
+            display: block;
+          }
+          figure {
+            margin: 0;
+            padding: 0;
+            display: block;
+          }
+          img {
+            max-width: 100%;
+            height: auto;
+          }
+          video {
+            max-width: 100%;
+            height: auto;
+          }
+        </style>
+      </head>
+      <body>
+        <header>
+          <h1>${userId}'s stories</h1>
+          <p>By ${userId} • Fstoriesbot</p>
+          <hr>
+        </header>
+        <div class="article">
+        <article class="article__content">
+          ${mediaHtml}
+        </article>
+        <footer>
+          <hr>
+          <p>Powered by <a href="https://telegram.dog/nexiuo" target="_blank">Instant View</a></p>
+        </footer>
+      </body>
+    </html>`;
+  }
+
+  function generateRegularHtml(mediaHtml, userId) {
     return `<!DOCTYPE html>
   <html>
     <head>
-      <title>Fstoriesbot</title>
+      <title>${userId} | Fstoriesbot</title>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width,minimum-scale=1">
+      <meta property="og:title" content="${userId}'s stories">
+      <meta property="og:description" content="Check out ${userId}'s latest stories!">
+      <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
+      <meta property="og:url" content="https://github.com/dishapatel010/TgStory">
+      <meta property="og:type" content="website">
       <script async src="https://cdn.ampproject.org/v0.js"></script>
       <script async custom-element="amp-story" src="https://cdn.ampproject.org/v0/amp-story-1.0.js"></script>
       <style>
