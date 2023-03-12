@@ -145,9 +145,9 @@
       JSON.stringify({
         method: "sendMessage",
         chat_id: chat.id,
-        text: `Your story has been uploaded successfully! Share the link with your friends:\n${storyi}${USERNAME}`,
+        text: `Your story has been uploaded successfully! Share the link with your friends:\n[TgStory](${storyi}${USERNAME})`,
         parse_mode: "MARKDOWN",
-        disable_web_page_preview: "True",
+        disable_web_page_preview: "False",
         reply_to_message_id: message_id
       }), {
         status: 200,
