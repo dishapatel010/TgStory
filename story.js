@@ -92,6 +92,46 @@
         })
     }
 
+    if (text === '/about') {
+      // Customize these variables with your bot information
+      const botName = '@Fstoriesbot | TgStory';
+      const botVersion = '1.1';
+      const developerName = '@IsThisUser';
+      const description = 'Easily share images and videos with your friends.';
+      const recentUpdates = [
+        '- [feat]: customUsernames',
+        '- [misc]: use delimiter |',
+        '- updated to V1.1'
+      ];
+
+      const responseMessage = `
+*${botName}*
+Version: ${botVersion}
+
+Developed by: ${developerName}
+
+Description: ${description}
+      
+Recent Updates:
+${recentUpdates.join('\n')}
+    `;
+
+      return new Response(
+        JSON.stringify({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: responseMessage,
+          parse_mode: "MARKDOWN",
+          disable_web_page_preview: "True",
+          reply_to_message_id: message_id
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8'
+          }
+        })
+    }
+
     if (!photo && !video) {
       return new Response(
         JSON.stringify({
