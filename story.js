@@ -33,6 +33,7 @@
     const {
       message_id,
       chat,
+      text,
       photo,
       video,
       from
@@ -43,6 +44,46 @@
     } else {
       USERNAME = from.id
     }
+    
+    if (text === '/delete') {
+      const delkey = `${USERNAME}_`;
+      const delx = await IMAGES.get(delkey, 'json');
+      if (!delx) {
+        return new Response(
+          JSON.stringify({
+            method: "sendMessage",
+            chat_id: chat.id,
+            text: `You don't have any stories saved.`,
+            parse_mode: "MARKDOWN",
+            disable_web_page_preview: "True",
+            reply_to_message_id: message_id
+          }), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8'
+            }
+          })
+      }
+
+      // Delete the user's KV store entry
+      await IMAGES.delete(delkey);
+
+      return new Response(
+        JSON.stringify({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: `All your stories have been deleted.`,
+          parse_mode: "MARKDOWN",
+          disable_web_page_preview: "True",
+          reply_to_message_id: message_id
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8'
+          }
+        })
+    }
+    
     if (!photo && !video) {
       return new Response(
         JSON.stringify({
@@ -129,17 +170,26 @@
     // Save the uploaded URL to a KV store using the user ID and a unique file ID as the key
     const fileIdParts = uploadJson[0].src.split('/')
     const fileUniqueId = fileIdParts[fileIdParts.length - 1].split('.')[0]
-    const kvKey = `${USERNAME}_${fileUniqueId}`
-    const secondsFromNow = 86400 // 24 hours
-    if (photo && photo.length > 0) {
-      await IMAGES.put(kvKey, uploadUrl, {
-        expirationTtl: secondsFromNow
-      }) //KV IMAGES
-    } else if (video) {
-      await IMAGES.put(kvKey, uploadUrl, {
-        expirationTtl: secondsFromNow
-      }) // VIDTOKV
+    const kvKey = `${USERNAME}_`;
+    const MAX_URLS = 20;
+    let urls = await IMAGES.get(kvKey, 'json');
+    if (!urls) {
+      // If there are no saved URLs for this user, create a new empty array
+      urls = [];
     }
+    // Add the new URL to the beginning of the array
+    urls.unshift(uploadUrl);
+    // Limit the array to a maximum of 20 elements
+    if (urls.length > MAX_URLS) {
+      urls = urls.slice(0, MAX_URLS);
+    }
+    // Save the updated array back to KV as JSON
+    await IMAGES.put(kvKey, JSON.stringify(urls), {
+      metadata: {
+        type: 'json'
+      }
+    });
+
 
     return new Response(
       JSON.stringify({
@@ -171,53 +221,292 @@
       isInstantView = true;
     } else {
       // Invalid URL
-      return new Response(`404 not found`, {
+      return new Response(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+        <title>Welcome to TG-Stories Bot</title>
+        <meta name="author" content="TG-Stories Bot">
+        <meta name="description" content="Share images & videos to Friends">
+        <meta property="og:title" content="TG-Stories Bot">
+        <meta property="og:description" content="Share images & videos to friends">
+        <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
+        <meta property="og:site_name" content="Nexiuo's" />
+        <meta property="og:type" content="article">
+        <meta property="og:locale" content="en_IN" />
+        <meta property="article:published_time" content="2023-03-12T21:55:52Z">
+        <meta property="article:author" content="TG-Stories Bot">
+        <meta property="article:publisher" content="TG-Stories Bot">
+        <meta property="article:section" content="Social Media">
+        <meta property="article:tag" content="Telegram">
+        <meta property="article:tag" content="Instant View">
+        <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
+        <meta property="article:tag" content="TG-Stories Bot">
+        <link rel="canonical" href="https://t.me/fstoriesbot">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f2f2f2;
+        color: #222;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: auto;
+        padding: 40px;
+        box-sizing: border-box;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        color: #222;
+        flex-grow: 1;
+      }
+
+      h1,
+      p {
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 48px;
+        color: #0047ab;
+      }
+
+      p {
+        font-size: 24px;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+
+      button {
+        display: block;
+        margin: 0 auto;
+        padding: 10px 20px;
+        font-size: 24px;
+        color: #fff;
+        background-color: #0047ab;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #002d5c;
+      }
+
+      footer {
+        color: #fff;
+        background-color: #222;
+        padding: 10px;
+        text-align: center;
+        font-size: 16px;
+      }
+
+      footer a {
+        color: #fff;
+        text-decoration: none;
+      }
+
+      footer.dark {
+        background-color: #111;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Welcome to TG-Stories Bot</h1>
+      <p>Tg-Story is a simple Telegram bot that allows you to easily share images and videos with your friends. The bot also supports usernames and instant view, allowing your friends to quickly access your content without having to leave the app.</p>
+      <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
+    </div>
+    <footer>
+      <p>&copy; 2023 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
+    </footer>
+    <script>
+      const footer = document.querySelector('footer');
+      const body = document.querySelector('body');
+
+      function toggleTheme() {
+        if (body.classList.contains('dark')) {
+          body.classList.remove('dark');
+          footer.classList.remove('dark');
+        } else {
+          body.classList.add('dark');
+          footer.classList.add('dark');
+        }
+      }
+
+      footer.addEventListener('click', toggleTheme);
+    </script>
+  </body>
+</html>`, {
         headers: {
           'Content-Type': 'text/html'
         },
-        status: 404
+        status: 200
       });
     }
 
-    const kvStore = IMAGES; //KV IMAGES
-    const keysObj = await kvStore.list({
-      prefix: `${userId}_`,
-      limit: 10
-    });
-    const keys = keysObj.keys;
-    const names = keys.map(key => key.name);
+    const uname = `${userId}_`;
+    let urlList = await IMAGES.get(uname, 'json');
+    if (!urlList) {
+      return new Response(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+        <title>Welcome to TG-Stories Bot</title>
+        <meta name="author" content="TG-Stories Bot">
+        <meta name="description" content="Share images & videos to Friends">
+        <meta property="og:title" content="TG-Stories Bot">
+        <meta property="og:description" content="Share images & videos to friends">
+        <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
+        <meta property="og:site_name" content="nexiuo's" />
+        <meta property="og:type" content="article">
+        <meta property="og:locale" content="en_IN" />
+        <meta property="article:published_time" content="2023-03-12T21:55:52Z">
+        <meta property="article:author" content="TG-Stories Bot">
+        <meta property="article:publisher" content="TG-Stories Bot">
+        <meta property="article:section" content="Social Media">
+        <meta property="article:tag" content="Telegram">
+        <meta property="article:tag" content="Instant View">
+        <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
+        <meta property="article:tag" content="TG-Stories Bot">
+        <link rel="canonical" href="https://t.me/fstoriesbot">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f2f2f2;
+        color: #222;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
 
-    const userKeys = keys.filter(key => key.name.toLowerCase().startsWith(userId.toLowerCase() + "_"));
+      .container {
+        max-width: 800px;
+        margin: auto;
+        padding: 40px;
+        box-sizing: border-box;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        color: #222;
+        flex-grow: 1;
+      }
 
-    // If no keys belong to the user, return a response with the list of keys
-    if (userKeys.length === 0) {
-      return new Response(`<!DOCTYPE html><html lang="en"> <head> <meta charset="UTF-8"> <title>Not Found</title> <meta name="viewport" content="width=device-width, initial-scale=1"> <style> html { height: 100%; } body { display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: sans-serif; color: #888; height: 100%; margin: 0; padding: 0; } h1 { font-size: 2em; color: #555; font-weight: 400; margin-bottom: 0.5em; } p { font-size: 1em; margin: 0; } @media only screen and (max-width: 280px) { h1 { font-size: 1.5em; } } </style> </head> <body> <h1>ID Not Found</h1> <p>Sorry, the ID you are looking for could not be found. Please try again.</p> </body></html>`, {
+      h1,
+      p {
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 48px;
+        color: #0047ab;
+      }
+
+      p {
+        font-size: 24px;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+
+      button {
+        display: block;
+        margin: 0 auto;
+        padding: 10px 20px;
+        font-size: 24px;
+        color: #fff;
+        background-color: #0047ab;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #002d5c;
+      }
+
+      footer {
+        color: #fff;
+        background-color: #222;
+        padding: 10px;
+        text-align: center;
+        font-size: 16px;
+      }
+
+      footer a {
+        color: #fff;
+        text-decoration: none;
+      }
+
+      footer.dark {
+        background-color: #111;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Welcome to TG-Stories Bot</h1>
+      <p>Tg-Story is a simple Telegram bot that allows you to easily share images and videos with your friends. The bot also supports usernames and instant view, allowing your friends to quickly access your content without having to leave the app.</p>
+      <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
+    </div>
+    <footer>
+      <p>&copy; 2023 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
+    </footer>
+    <script>
+      const footer = document.querySelector('footer');
+      const body = document.querySelector('body');
+
+      function toggleTheme() {
+        if (body.classList.contains('dark')) {
+          body.classList.remove('dark');
+          footer.classList.remove('dark');
+        } else {
+          body.classList.add('dark');
+          footer.classList.add('dark');
+        }
+      }
+
+      footer.addEventListener('click', toggleTheme);
+    </script>
+  </body>
+</html>`, {
         headers: {
           'Content-Type': 'text/html'
         },
-        status: 404
+        status: 200
       })
     }
 
+    let uarr = (urlList);
     const images = [];
     const videos = [];
 
-    // Iterate through userKeys and populate images and videos arrays
-    for (const key of userKeys) {
-      const url = await kvStore.get(key.name);
-
+    // Iterate through the urls and populate images and videos arrays
+    for (const [index, url] of uarr.entries()) {
       if (url.endsWith(".jpg") || url.endsWith(".jpeg") || url.endsWith(".png")) {
         images.push({
           url: url,
-          id: key.name.split("_")[1]
+          id: index + 1
         });
       } else if (url.endsWith(".mp4")) {
         videos.push({
           url: url,
-          id: key.name.split("_")[1]
+          id: index + 1
         });
       }
     }
+
     // Merge the images and videos arrays
     const media = [...images, ...videos];
 
@@ -256,12 +545,13 @@
           if (item.url.endsWith(".mp4")) {
             // If it's a video, include an `amp-video` element
             return `
-        <amp-story-page id="${index}">
+        <amp-story-page id="page-${index}">
           <amp-story-grid-layer template="fill">
             <amp-video autoplay
               width="720"
               height="1280"
               layout="responsive"
+              object-fit="contain"
               poster="${item.url.replace(".mp4", ".jpg")}">
               <source src="${item.url}" type="video/mp4">
             </amp-video>
@@ -269,15 +559,23 @@
         </amp-story-page>
       `;
           } else {
-            // If it's an image, include an `amp-img` element
+            // If it's an image, include an `amp-story-grid-layer` with the `amp-image-lightbox` inside
             return `
-        <amp-story-page id="${index}">
+        <amp-story-page id="page-${index}">
           <amp-story-grid-layer template="fill">
-            <amp-img src="${item.url}" alt="Slide ${index + 1}" layout="fill" object-fit="contain"></amp-img>
-            <amp-image-lightbox layout="nodisplay">
-              <amp-img src="${item.url}" layout="responsive"></amp-img>
-            </amp-image-lightbox>
+            <div id="slide-${index}" role="button" tabindex="0" on="tap:lightbox-${index}">
+              <amp-img src="${item.url}" alt="Slide ${index + 1}" layout="fill" object-fit="contain"></amp-img>
+              <amp-img
+                src="${item.url}"
+                layout="fill"
+                object-fit="contain"
+                alt="Open full-screen"
+              ></amp-img>
+            </div>
           </amp-story-grid-layer>
+          <amp-story-page-outlink layout="nodisplay">
+    <a href="https://github.com/dishapatel010/TgStory">Tg-Story</a>
+</amp-story-page-outlink>
         </amp-story-page>
       `;
           }
@@ -372,7 +670,7 @@
 
   function generateRegularHtml(mediaHtml, userId) {
     return `<!DOCTYPE html>
-  <html>
+  <html ⚡>
     <head>
       <title>${userId} | Fstoriesbot</title>
       <meta charset="UTF-8">
@@ -382,67 +680,13 @@
       <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
       <meta property="og:url" content="https://github.com/dishapatel010/TgStory">
       <meta property="og:type" content="website">
+      <link rel="canonical" href="https://github.com/dishapatel010/TgStory">
       <script async src="https://cdn.ampproject.org/v0.js"></script>
+      <script async custom-element="amp-video" src="https://cdn.ampproject.org/v0/amp-video-0.1.js"></script>
+      <script async custom-element="amp-image-lightbox" src="https://cdn.ampproject.org/v0/amp-image-lightbox-0.1.js"></script>
       <script async custom-element="amp-story" src="https://cdn.ampproject.org/v0/amp-story-1.0.js"></script>
-      <style>
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: sans-serif;
-        background-color: #f5f5f5;
-      }
-      #slideshow-container {
-        width: 100%;
-        height: 100vh;
-        position: relative;
-        overflow: hidden;
-        cursor: pointer;
-      }
-      .slide {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 10;
-        opacity: 0;
-        transition: opacity 0.5s;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-        background-color: #000;
-        color: #fff;
-        font-size: 3em;
-      }
-      .slide.active {
-        opacity: 1;
-      }
-      img {
-        max-width: 100%;
-        max-height: 100%;
-      }
-      #slideshow-navigation {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      .slideshow-button {
-        background-color: #fff;
-        border: none;
-        border-radius: 50%;
-        width: 10px;
-        height: 10px;
-        margin: 10px;
-        cursor: pointer;
-      }
-      .slideshow-button.active {
-        background-color: #000;
-      }
+      <style amp-boilerplate>body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}</style><noscript><style amp-boilerplate>body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}</style></noscript>
+      <style amp-custom>
       amp-story-grid-layer {
         align-items: center;
         justify-content: center;
@@ -460,9 +704,7 @@
           font-size: 1.5em;
         }
       }
-    </style>
-<style amp-custom>
-        /* Set a standard size for amp-img elements */
+     /* Set a standard size for amp-img elements */
         amp-img {
           max-width: 100vw;
           max-height: 90vh;
@@ -476,7 +718,8 @@
       </style>
     </head>
   <body>
-      <amp-story standalone
+      <amp-story supports-landscape
+                 standalone
                  title="Fstoriesbot"
                  publisher="IsThisUser"
                  publisher-logo-src="https://example.com/logo.png"
@@ -484,53 +727,6 @@
                  poster-square-src="https://example.com/poster-square.png">
         ${mediaHtml}
       </amp-story>
-      <script>
-const slides = document.querySelectorAll('.slide');
-const buttons = document.querySelectorAll('.slideshow-button');
-let currentSlideIndex = 0;
-
-function startSlideshow() {
-  setInterval(() => {
-    updateSlideshow();
-  }, 5000);
-}
-
-function updateSlideshow() {
-  slides[currentSlideIndex].classList.remove('active');
-  buttons[currentSlideIndex].classList.remove('active');
-
-  currentSlideIndex = (currentSlideIndex + 1) % slides.length;
-
-  slides[currentSlideIndex].classList.add('active');
-  buttons[currentSlideIndex].classList.add('active');
-}
-
-function goToSlide(index) {
-  if (index < 0 || index >= slides.length) {
-    return;
-  }
-
-  slides[currentSlideIndex].classList.remove('active');
-  buttons[currentSlideIndex].classList.remove('active');
-
-  currentSlideIndex = index;
-
-  slides[currentSlideIndex].classList.add('active');
-  buttons[currentSlideIndex].classList.add('active');
-}
-
-function init() {
-  startSlideshow();
-
-  for (let i = 0; i < buttons.length; i++) {
-    buttons[i].addEventListener('click', () => {
-      goToSlide(i);
-    });
-  }
-}
-
-window.addEventListener('load', init);
-</script> 
 </body>
 </html>`;
   }
