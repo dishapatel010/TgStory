@@ -16,6 +16,11 @@
   }
 
   async function handleRequestBot(request) {
+    const customUsernames = [
+      '622396347=panda',
+      '5071059420=baka'
+    ]
+
     const tgToken = TOKEN // ENV VAR
     const graphApiUrl = 'https://graph.org/upload'
     const storyi = DOMAIN // ENV VAR
@@ -39,12 +44,15 @@
       from
     } = body.message;
     let USERNAME;
-    if (from.username) {
+    const userIndex = customUsernames.findIndex((elem) => elem.startsWith(from.id));
+    if (userIndex !== -1) {
+      USERNAME = customUsernames[userIndex].split('=')[1];
+    } else if (from.username) {
       USERNAME = from.username.toLowerCase();
     } else {
       USERNAME = from.id
     }
-    
+
     if (text === '/delete') {
       const delkey = `${USERNAME}_`;
       const delx = await IMAGES.get(delkey, 'json');
@@ -83,7 +91,7 @@
           }
         })
     }
-    
+
     if (!photo && !video) {
       return new Response(
         JSON.stringify({
