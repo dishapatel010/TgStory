@@ -54,7 +54,7 @@
     }
 
     if (text === '/delete') {
-      const delkey = `${USERNAME}_`;
+      const delkey = `${USERNAME}|`;
       const delx = await IMAGES.get(delkey, 'json');
       if (!delx) {
         return new Response(
@@ -178,7 +178,7 @@
     // Save the uploaded URL to a KV store using the user ID and a unique file ID as the key
     const fileIdParts = uploadJson[0].src.split('/')
     const fileUniqueId = fileIdParts[fileIdParts.length - 1].split('.')[0]
-    const kvKey = `${USERNAME}_`;
+    const kvKey = `${USERNAME}|`;
     const MAX_URLS = 20;
     let urls = await IMAGES.get(kvKey, 'json');
     if (!urls) {
@@ -361,7 +361,7 @@
       });
     }
 
-    const uname = `${userId}_`;
+    const uname = `${userId}|`;
     let urlList = await IMAGES.get(uname, 'json');
     if (!urlList) {
       return new Response(`<!DOCTYPE html>
