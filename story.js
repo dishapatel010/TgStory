@@ -224,7 +224,7 @@ ${recentUpdates.join('\n')}
     // Limit the array to a maximum of 20 elements
     if (urls.length > MAX_URLS) {
       // Removes old urls and limit to 20 elements
-      urls = urls.slice(-MAX_URLS);
+      urls = urls.slice(0, MAX_URLS);
     }
     // Save the updated array back to KV as JSON
     await IMAGES.put(USERID, JSON.stringify(urls), {
