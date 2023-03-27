@@ -64,11 +64,10 @@
     }
     const userIndex = customUsernames.findIndex((elem) => elem.startsWith(USERID));
     if (userIndex !== -1) USERNAME = customUsernames[userIndex].split('=')[1];
-    const key = `${USERNAME}|${USERID}`
+    const key = `${USERNAME}|`
 
     if (text === '/delete') {
       const delx = await IMAGES.get(key, 'json');
-      const usernamex = await USERNAMES.get(USERNAME, 'text');
       if (!delx) {
         return new Response(
           JSON.stringify({
@@ -228,34 +227,8 @@ ${recentUpdates.join('\n')}
     const uploadUrl = `https://graph.org${uploadJson[0].src}`
 
     const MAX_URLS = 20;
-    let urls = [];
-
-    // detect if username changed
-    let found = false;
-    let cursor = null;
-    let completed = false;
-
-    do {
-      const { keys: keyList, list_complete: listComplete, cursor: nextCursor } = await IMAGES.list({
-        prefix: "",
-        cursor: cursor,
-      });
-
-      // Iterate over the keys and get the key that ends with userID
-      for (const key of keyList) {
-        if (key.name.endsWith(USERID)) {
-          found = true;
-          urls = await IMAGES.get(key.name, 'json');
-          if (key.name !== key) {
-            await IMAGES.delete(key.name);
-          }  
-          break;
-        }
-      }
-      // Update the cursor to continue listing keys if necessary
-      cursor = nextCursor;
-      completed = listComplete;
-    } while (!completed && cursor && !found);
+    const data = await IMAGES.get(key, "json");
+    let urls = data ? data : [];
 
     // Add the new URL to the beginning of the array
     urls.unshift(uploadUrl);
@@ -422,13 +395,8 @@ ${recentUpdates.join('\n')}
       });
     }
 
-    let urlList = [];
-    const { keys } = await IMAGES.list({
-      prefix: `${uname}|`,
-      limit: 1,
-    });
-
-    if (keys.length > 0) urlList = await IMAGES.get(keys[0].name, 'json');
+    const data = await IMAGES.get(`${uname}|`, "json");
+    let urlList = data ? data : [];
 
     if (urlList.length == 0) {
       return new Response(default_html, {
