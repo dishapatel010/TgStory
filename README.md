@@ -1,8 +1,8 @@
 # TGStory
 ---
 - Save and Deploy `story.js` to cf-worker
-- Create KV `IMAGES` and `USERNAMES`
-- Bind to cf-worker as variable `IMAGES` and `USERNAMES`
+- Create KV `IMAGES`
+- Bind to cf-worker as variable `IMAGES`
 - Create ENV var from cf-worker settings :
 - TOKEN : `BOT-TOKEN`
 - DOMAIN : `https://example.subdoamin.workers.dev/`
