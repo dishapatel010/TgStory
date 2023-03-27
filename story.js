@@ -22,8 +22,8 @@
     ]
 
     const tgToken = TOKEN // ENV VAR
-    const graphApiUrl = 'https://graph.org/upload'
     const storyi = DOMAIN // ENV VAR
+    const graphApiUrl = 'https://graph.org/upload'
 
     const originalRequest = request.clone()
     const body = await originalRequest.json()
@@ -43,13 +43,31 @@
       video,
       from
     } = body.message;
-    const USERID = from.id.toString();
-    const USERNAME = from.username.toLowerCase();
+    const USERID = from.id ? from.id.toString() : "";
+    const USERNAME = from.username ? from.username.toLowerCase() : "";
+
+    if (!USERID) {
+      return new Response(
+          JSON.stringify({
+            method: "sendMessage",
+            chat_id: chat.id,
+            text: `User Id couldn't found!`,
+            parse_mode: "MARKDOWN",
+            disable_web_page_preview: "True",
+            reply_to_message_id: message_id
+          }), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8'
+          }
+      })
+    }
     const userIndex = customUsernames.findIndex((elem) => elem.startsWith(USERID));
     if (userIndex !== -1) USERNAME = customUsernames[userIndex].split('=')[1];
+    const key = `${USERNAME}|${USERID}`
 
     if (text === '/delete') {
-      const delx = await IMAGES.get(USERID, 'json');
+      const delx = await IMAGES.get(key, 'json');
       const usernamex = await USERNAMES.get(USERNAME, 'text');
       if (!delx) {
         return new Response(
@@ -69,8 +87,7 @@
       }
 
       // Delete the user's KV store entry
-      await IMAGES.delete(USERID);
-      if (usernamex) await USERNAMES.delete(USERNAME);
+      await IMAGES.delete(key);
 
       return new Response(
         JSON.stringify({
@@ -210,15 +227,36 @@ ${recentUpdates.join('\n')}
     const uploadJson = await uploadResponse.clone().json()
     const uploadUrl = `https://graph.org${uploadJson[0].src}`
 
-    // Save the uploaded URL to a KV store using the user ID and a unique file ID as the key
-    const fileIdParts = uploadJson[0].src.split('/')
-    const fileUniqueId = fileIdParts[fileIdParts.length - 1].split('.')[0]
     const MAX_URLS = 20;
-    let urls = await IMAGES.get(USERID, 'json');
-    if (!urls) {
-      // If there are no saved URLs for this user, create a new empty array
-      urls = [];
-    }
+    let urls = [];
+
+    // detect if username changed
+    let found = false;
+    let cursor = null;
+    let completed = false;
+
+    do {
+      const { keys: keyList, list_complete: listComplete, cursor: nextCursor } = await IMAGES.list({
+        prefix: "",
+        cursor: cursor,
+      });
+
+      // Iterate over the keys and get the key that ends with userID
+      for (const key of keyList) {
+        if (key.name.endsWith(USERID)) {
+          found = true;
+          urls = await IMAGES.get(key.name, 'json');
+          if (key.name !== key) {
+            await IMAGES.delete(key.name);
+          }  
+          break;
+        }
+      }
+      // Update the cursor to continue listing keys if necessary
+      cursor = nextCursor;
+      completed = listComplete;
+    } while (!completed && cursor && !found);
+
     // Add the new URL to the beginning of the array
     urls.unshift(uploadUrl);
     // Limit the array to a maximum of 20 elements
@@ -226,21 +264,12 @@ ${recentUpdates.join('\n')}
       // Removes old urls and limit to 20 elements
       urls = urls.slice(0, MAX_URLS);
     }
-    // Save the updated array back to KV as JSON
-    await IMAGES.put(USERID, JSON.stringify(urls), {
+
+    await IMAGES.put(key, JSON.stringify(urls), {
       metadata: {
         type: 'json'
       }
     });
-    // Save username in every request because:
-    // 1. If user changes username, new story link with his username will work (old will also work)
-    // 2. If another user take old username of any user, his userID will be updated in KV
-    await USERNAMES.put(USERNAME, USERID, {
-      metadata: {
-        type: 'text'
-      }
-    });
-
 
     return new Response(
       JSON.stringify({
@@ -393,9 +422,15 @@ ${recentUpdates.join('\n')}
       });
     }
 
-    const userId = await USERNAMES.get(uname, 'text');
-    let urlList = await IMAGES.get(userId, 'json');
-    if (!urlList) {
+    let urlList = [];
+    const { keys } = await IMAGES.list({
+      prefix: `${uname}|`,
+      limit: 1,
+    });
+
+    if (keys.length > 0) urlList = await IMAGES.get(keys[0].name, 'json');
+
+    if (urlList.length == 0) {
       return new Response(default_html, {
         headers: {
           'Content-Type': 'text/html'
