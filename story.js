@@ -22,8 +22,8 @@
     ]
 
     const tgToken = TOKEN // ENV VAR
-    const graphApiUrl = 'https://graph.org/upload'
     const storyi = DOMAIN // ENV VAR
+    const graphApiUrl = 'https://graph.org/upload'
 
     const originalRequest = request.clone()
     const body = await originalRequest.json()
@@ -43,19 +43,31 @@
       video,
       from
     } = body.message;
-    let USERNAME;
-    const userIndex = customUsernames.findIndex((elem) => elem.startsWith(from.id));
-    if (userIndex !== -1) {
-      USERNAME = customUsernames[userIndex].split('=')[1];
-    } else if (from.username) {
-      USERNAME = from.username.toLowerCase();
-    } else {
-      USERNAME = from.id
+    const USERID = from.id ? from.id.toString() : "";
+    const USERNAME = from.username ? from.username.toLowerCase() : "";
+
+    if (!USERID) {
+      return new Response(
+          JSON.stringify({
+            method: "sendMessage",
+            chat_id: chat.id,
+            text: `User Id couldn't found!`,
+            parse_mode: "MARKDOWN",
+            disable_web_page_preview: "True",
+            reply_to_message_id: message_id
+          }), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8'
+          }
+      })
     }
+    const userIndex = customUsernames.findIndex((elem) => elem.startsWith(USERID));
+    if (userIndex !== -1) USERNAME = customUsernames[userIndex].split('=')[1];
+    const key = `${USERNAME}|`
 
     if (text === '/delete') {
-      const delkey = `${USERNAME}|`;
-      const delx = await IMAGES.get(delkey, 'json');
+      const delx = await IMAGES.get(key, 'json');
       if (!delx) {
         return new Response(
           JSON.stringify({
@@ -74,7 +86,7 @@
       }
 
       // Delete the user's KV store entry
-      await IMAGES.delete(delkey);
+      await IMAGES.delete(key);
 
       return new Response(
         JSON.stringify({
@@ -148,7 +160,6 @@ ${recentUpdates.join('\n')}
           }
         })
     }
-    let largestFile;
     let fileId;
     if (photo && photo.length > 0) {
       const largestFile = photo.reduce((acc, cur) => (cur.width * cur.height) > (acc.width * acc.height) ? cur : acc, {
@@ -215,29 +226,23 @@ ${recentUpdates.join('\n')}
     const uploadJson = await uploadResponse.clone().json()
     const uploadUrl = `https://graph.org${uploadJson[0].src}`
 
-    // Save the uploaded URL to a KV store using the user ID and a unique file ID as the key
-    const fileIdParts = uploadJson[0].src.split('/')
-    const fileUniqueId = fileIdParts[fileIdParts.length - 1].split('.')[0]
-    const kvKey = `${USERNAME}|`;
     const MAX_URLS = 20;
-    let urls = await IMAGES.get(kvKey, 'json');
-    if (!urls) {
-      // If there are no saved URLs for this user, create a new empty array
-      urls = [];
-    }
+    const data = await IMAGES.get(key, "json");
+    let urls = data ? data : [];
+
     // Add the new URL to the beginning of the array
     urls.unshift(uploadUrl);
     // Limit the array to a maximum of 20 elements
     if (urls.length > MAX_URLS) {
+      // Removes old urls and limit to 20 elements
       urls = urls.slice(0, MAX_URLS);
     }
-    // Save the updated array back to KV as JSON
-    await IMAGES.put(kvKey, JSON.stringify(urls), {
+
+    await IMAGES.put(key, JSON.stringify(urls), {
       metadata: {
         type: 'json'
       }
     });
-
 
     return new Response(
       JSON.stringify({
@@ -259,141 +264,130 @@ ${recentUpdates.join('\n')}
     const path = new URL(request.url).pathname;
     const pathParts = path.split("/").filter(Boolean);
 
-    // Get the userId and isInstantView based on the pathParts
-    let userId, isInstantView;
+    const default_html = `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+            <title>Welcome to TG-Stories Bot</title>
+            <meta name="author" content="TG-Stories Bot">
+            <meta name="description" content="Share images & videos to Friends">
+            <meta property="og:title" content="TG-Stories Bot">
+            <meta property="og:description" content="Share images & videos to friends">
+            <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
+            <meta property="og:site_name" content="Nexiuo's" />
+            <meta property="og:type" content="article">
+            <meta property="og:locale" content="en_IN" />
+            <meta property="article:published_time" content="2023-03-12T21:55:52Z">
+            <meta property="article:author" content="TG-Stories Bot">
+            <meta property="article:publisher" content="TG-Stories Bot">
+            <meta property="article:section" content="Social Media">
+            <meta property="article:tag" content="Telegram">
+            <meta property="article:tag" content="Instant View">
+            <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
+            <meta property="article:tag" content="TG-Stories Bot">
+            <link rel="canonical" href="https://t.me/fstoriesbot">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+            color: #222;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+          }
+          .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 40px;
+            box-sizing: border-box;
+            background-color: #fff;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            color: #222;
+            flex-grow: 1;
+          }
+          h1,
+          p {
+            text-align: center;
+          }
+          h1 {
+            font-size: 48px;
+            color: #0047ab;
+          }
+          p {
+            font-size: 24px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+          }
+          button {
+            display: block;
+            margin: 0 auto;
+            padding: 10px 20px;
+            font-size: 24px;
+            color: #fff;
+            background-color: #0047ab;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+          button:hover {
+            background-color: #002d5c;
+          }
+          footer {
+            color: #fff;
+            background-color: #222;
+            padding: 10px;
+            text-align: center;
+            font-size: 16px;
+          }
+          footer a {
+            color: #fff;
+            text-decoration: none;
+          }
+          footer.dark {
+            background-color: #111;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Welcome to TG-Stories Bot</h1>
+          <p>Tg-Story is a simple Telegram bot that allows you to easily share images and videos with your friends. The bot also supports usernames and instant view, allowing your friends to quickly access your content without having to leave the app.</p>
+          <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
+        </div>
+        <footer>
+          <p>&copy; 2023 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
+        </footer>
+        <script>
+          const footer = document.querySelector('footer');
+          const body = document.querySelector('body');
+          function toggleTheme() {
+            if (body.classList.contains('dark')) {
+              body.classList.remove('dark');
+              footer.classList.remove('dark');
+            } else {
+              body.classList.add('dark');
+              footer.classList.add('dark');
+            }
+          }
+          footer.addEventListener('click', toggleTheme);
+        </script>
+      </body>
+    </html>`
+    // Get the uname and isInstantView based on the pathParts
+    let uname, isInstantView;
     if (pathParts.length === 1) {
-      userId = pathParts[0].toLowerCase();
+      uname = pathParts[0].toLowerCase();
       isInstantView = false;
     } else if (pathParts.length === 2 && pathParts[1].toLowerCase() === "iv") {
-      userId = pathParts[0].toLowerCase();
+      uname = pathParts[0].toLowerCase();
       isInstantView = true;
     } else {
       // Invalid URL
-      return new Response(`<!DOCTYPE html>
-<html lang="en">
-  <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-        <title>Welcome to TG-Stories Bot</title>
-        <meta name="author" content="TG-Stories Bot">
-        <meta name="description" content="Share images & videos to Friends">
-        <meta property="og:title" content="TG-Stories Bot">
-        <meta property="og:description" content="Share images & videos to friends">
-        <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
-        <meta property="og:site_name" content="Nexiuo's" />
-        <meta property="og:type" content="article">
-        <meta property="og:locale" content="en_IN" />
-        <meta property="article:published_time" content="2023-03-12T21:55:52Z">
-        <meta property="article:author" content="TG-Stories Bot">
-        <meta property="article:publisher" content="TG-Stories Bot">
-        <meta property="article:section" content="Social Media">
-        <meta property="article:tag" content="Telegram">
-        <meta property="article:tag" content="Instant View">
-        <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
-        <meta property="article:tag" content="TG-Stories Bot">
-        <link rel="canonical" href="https://t.me/fstoriesbot">
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f2f2f2;
-        color: #222;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .container {
-        max-width: 800px;
-        margin: auto;
-        padding: 40px;
-        box-sizing: border-box;
-        background-color: #fff;
-        border-radius: 4px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-        color: #222;
-        flex-grow: 1;
-      }
-
-      h1,
-      p {
-        text-align: center;
-      }
-
-      h1 {
-        font-size: 48px;
-        color: #0047ab;
-      }
-
-      p {
-        font-size: 24px;
-        margin-bottom: 20px;
-        line-height: 1.5;
-      }
-
-      button {
-        display: block;
-        margin: 0 auto;
-        padding: 10px 20px;
-        font-size: 24px;
-        color: #fff;
-        background-color: #0047ab;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-
-      button:hover {
-        background-color: #002d5c;
-      }
-
-      footer {
-        color: #fff;
-        background-color: #222;
-        padding: 10px;
-        text-align: center;
-        font-size: 16px;
-      }
-
-      footer a {
-        color: #fff;
-        text-decoration: none;
-      }
-
-      footer.dark {
-        background-color: #111;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="container">
-      <h1>Welcome to TG-Stories Bot</h1>
-      <p>Tg-Story is a simple Telegram bot that allows you to easily share images and videos with your friends. The bot also supports usernames and instant view, allowing your friends to quickly access your content without having to leave the app.</p>
-      <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
-    </div>
-    <footer>
-      <p>&copy; 2023 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
-    </footer>
-    <script>
-      const footer = document.querySelector('footer');
-      const body = document.querySelector('body');
-
-      function toggleTheme() {
-        if (body.classList.contains('dark')) {
-          body.classList.remove('dark');
-          footer.classList.remove('dark');
-        } else {
-          body.classList.add('dark');
-          footer.classList.add('dark');
-        }
-      }
-
-      footer.addEventListener('click', toggleTheme);
-    </script>
-  </body>
-</html>`, {
+      return new Response(default_html, {
         headers: {
           'Content-Type': 'text/html'
         },
@@ -401,134 +395,11 @@ ${recentUpdates.join('\n')}
       });
     }
 
-    const uname = `${userId}|`;
-    let urlList = await IMAGES.get(uname, 'json');
-    if (!urlList) {
-      return new Response(`<!DOCTYPE html>
-<html lang="en">
-  <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-        <title>Welcome to TG-Stories Bot</title>
-        <meta name="author" content="TG-Stories Bot">
-        <meta name="description" content="Share images & videos to Friends">
-        <meta property="og:title" content="TG-Stories Bot">
-        <meta property="og:description" content="Share images & videos to friends">
-        <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
-        <meta property="og:site_name" content="nexiuo's" />
-        <meta property="og:type" content="article">
-        <meta property="og:locale" content="en_IN" />
-        <meta property="article:published_time" content="2023-03-12T21:55:52Z">
-        <meta property="article:author" content="TG-Stories Bot">
-        <meta property="article:publisher" content="TG-Stories Bot">
-        <meta property="article:section" content="Social Media">
-        <meta property="article:tag" content="Telegram">
-        <meta property="article:tag" content="Instant View">
-        <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
-        <meta property="article:tag" content="TG-Stories Bot">
-        <link rel="canonical" href="https://t.me/fstoriesbot">
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f2f2f2;
-        color: #222;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
+    const data = await IMAGES.get(`${uname}|`, "json");
+    let urlList = data ? data : [];
 
-      .container {
-        max-width: 800px;
-        margin: auto;
-        padding: 40px;
-        box-sizing: border-box;
-        background-color: #fff;
-        border-radius: 4px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-        color: #222;
-        flex-grow: 1;
-      }
-
-      h1,
-      p {
-        text-align: center;
-      }
-
-      h1 {
-        font-size: 48px;
-        color: #0047ab;
-      }
-
-      p {
-        font-size: 24px;
-        margin-bottom: 20px;
-        line-height: 1.5;
-      }
-
-      button {
-        display: block;
-        margin: 0 auto;
-        padding: 10px 20px;
-        font-size: 24px;
-        color: #fff;
-        background-color: #0047ab;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-
-      button:hover {
-        background-color: #002d5c;
-      }
-
-      footer {
-        color: #fff;
-        background-color: #222;
-        padding: 10px;
-        text-align: center;
-        font-size: 16px;
-      }
-
-      footer a {
-        color: #fff;
-        text-decoration: none;
-      }
-
-      footer.dark {
-        background-color: #111;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="container">
-      <h1>Welcome to TG-Stories Bot</h1>
-      <p>Tg-Story is a simple Telegram bot that allows you to easily share images and videos with your friends. The bot also supports usernames and instant view, allowing your friends to quickly access your content without having to leave the app.</p>
-      <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
-    </div>
-    <footer>
-      <p>&copy; 2023 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
-    </footer>
-    <script>
-      const footer = document.querySelector('footer');
-      const body = document.querySelector('body');
-
-      function toggleTheme() {
-        if (body.classList.contains('dark')) {
-          body.classList.remove('dark');
-          footer.classList.remove('dark');
-        } else {
-          body.classList.add('dark');
-          footer.classList.add('dark');
-        }
-      }
-
-      footer.addEventListener('click', toggleTheme);
-    </script>
-  </body>
-</html>`, {
+    if (urlList.length == 0) {
+      return new Response(default_html, {
         headers: {
           'Content-Type': 'text/html'
         },
@@ -585,7 +456,7 @@ ${recentUpdates.join('\n')}
         })
         .join("");
 
-      html = generateInstantViewHtml(mediaHtml, userId);
+      html = generateInstantViewHtml(mediaHtml, uname);
     } else {
       // Generate the HTML for the media items using regular template
       const mediaHtml = media
@@ -630,7 +501,7 @@ ${recentUpdates.join('\n')}
         })
         .join("");
 
-      html = generateRegularHtml(mediaHtml, userId);
+      html = generateRegularHtml(mediaHtml, uname);
     }
 
     return new Response(html, {
@@ -640,24 +511,24 @@ ${recentUpdates.join('\n')}
     });
   }
 
-  function generateInstantViewHtml(mediaHtml, userId) {
+  function generateInstantViewHtml(mediaHtml, uname) {
     return `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-        <meta name="title" content="${userId}'s stories">
-        <meta name="author" content="${userId}">
-        <meta name="description" content="Check out ${userId}'s latest stories!">
-        <meta property="og:title" content="${userId}'s stories">
-        <meta property="og:description" content="Check out ${userId}'s latest stories!">
+        <meta name="title" content="${uname}'s stories">
+        <meta name="author" content="${uname}">
+        <meta name="description" content="Check out ${uname}'s latest stories!">
+        <meta property="og:title" content="${uname}'s stories">
+        <meta property="og:description" content="Check out ${uname}'s latest stories!">
         <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
         <meta property="og:site_name" content="TG-Stories" />
         <meta property="og:type" content="article">
         <meta property="og:locale" content="en_IN" />
         <meta property="article:published_time" content="${new Date().toISOString()}">
-        <meta property="article:author" content="${userId}">
+        <meta property="article:author" content="${uname}">
         <meta property="article:publisher" content="Fstoriesbot">
         <meta property="article:section" content="Social Media">
         <meta property="article:tag" content="Telegram">
@@ -665,7 +536,7 @@ ${recentUpdates.join('\n')}
         <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
         <meta property="article:tag" content="Stories">
         <link rel="canonical" href="https://t.me/fstoriesbot">
-        <title>${userId}'s stories | Fstoriesbot</title>
+        <title>${uname}'s stories | Fstoriesbot</title>
         <style>
           body {
             margin: 0;
@@ -700,8 +571,8 @@ ${recentUpdates.join('\n')}
       </head>
       <body>
         <header>
-          <h1>${userId}'s stories</h1>
-          <p>By ${userId} • Fstoriesbot</p>
+          <h1>${uname}'s stories</h1>
+          <p>By ${uname} • Fstoriesbot</p>
           <hr>
         </header>
         <div class="article">
@@ -716,15 +587,15 @@ ${recentUpdates.join('\n')}
     </html>`;
   }
 
-  function generateRegularHtml(mediaHtml, userId) {
+  function generateRegularHtml(mediaHtml, uname) {
     return `<!DOCTYPE html>
   <html ⚡>
     <head>
-      <title>${userId} | Fstoriesbot</title>
+      <title>${uname} | Fstoriesbot</title>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width,minimum-scale=1">
-      <meta property="og:title" content="${userId}'s stories">
-      <meta property="og:description" content="Check out ${userId}'s latest stories!">
+      <meta property="og:title" content="${uname}'s stories">
+      <meta property="og:description" content="Check out ${uname}'s latest stories!">
       <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
       <meta property="og:url" content="https://github.com/dishapatel010/TgStory">
       <meta property="og:type" content="website">
@@ -757,7 +628,6 @@ ${recentUpdates.join('\n')}
           max-width: 100vw;
           max-height: 90vh;
         }
-
         /* Rotate the image if it exceeds the standard size */
         amp-img[height][width] {
           object-fit: contain;
