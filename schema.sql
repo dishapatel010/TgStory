@@ -1,0 +1,8 @@
+CREATE TABLE TGSTORY (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  unique_id TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  UNIQUE (user_id, unique_id)
+);

@@ -1,0 +1,10 @@
+name = "tgstory"
+main = "src/index.ts"
+compatibility_date = "2023-03-30"
+[[ d1_databases ]]
+binding = "DB"
+database_name = ""
+database_id = ""
+[ vars ]
+TOKEN = ""
+DOMAIN = ""
