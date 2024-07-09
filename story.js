@@ -95,12 +95,15 @@
     if (text === '/about') {
       // Customize these variables with your bot information
       const botName = '@Fstoriesbot | TgStory';
-      const botVersion = '1.1';
+      const botVersion = '1.3';
       const developerName = '@IsThisUser';
       const description = 'Easily share images and videos with your friends.';
       const recentUpdates = [
+        '- [MINI APP]: added mini app support on 09-07-2024 12:25 pm IST',
+        '- updated to V1.3',
         '- [feat]: customUsernames',
         '- [misc]: use delimiter |',
+        '- note: database was rest on 18|03|2023 6:30 PM (18:30) GMT',
         '- updated to V1.1'
       ];
 
@@ -132,7 +135,61 @@ ${recentUpdates.join('\n')}
         })
     }
 
+    if (text === '/privacy') {
+      const privacyPolicy = `
+*Privacy Policy*
+
+1. **Data Collected**:
+   - User IDs and usernames.
+   - Links to media files (photos and videos).
+
+2. **Usage of Data**:
+   - Storing links to media files for sharing.
+   - Generating links for media sharing.
+
+3. **Data Retention**:
+   - Links to media files are stored for a maximum of 20 files per user.
+   - User data is retained as long as the bot is active.
+
+4. **Data Deletion**:
+   - Users can delete their data from bot by using the /delete command.
+   - Deleted data is removed permanently from our servers (it does not delete from Third-Party).
+
+5. **Third-Party Services**:
+   - We use \`Telegra.ph\` / \`Graph.org\` for storing photos and videos.
+   - We are not responsible for the content shared by users.
+
+6. **Contact Information**:
+   - For any privacy concerns, contact the developer at @IsThisUser.
+
+By using this bot, you agree to the collection and use of your data as outlined in this policy.
+`;
+
+      return new Response(
+        JSON.stringify({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: privacyPolicy,
+          parse_mode: "MARKDOWN",
+          disable_web_page_preview: "True",
+          reply_to_message_id: message_id
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8'
+          }
+        });
+    }
+
     if (!photo && !video) {
+      const wkeyboard = {
+        inline_keyboard: [
+          [{
+              text: 'View Stories ✨',
+              web_app: { url: DOMAIN }
+          }]
+        ]
+      };
       return new Response(
         JSON.stringify({
           method: "sendMessage",
@@ -140,7 +197,7 @@ ${recentUpdates.join('\n')}
           text: `Hello, Stories in Telegram. Send new photos or videos & share the link with your friends - and you're done!\n\nDrop Star ⭐ [TgStory](https://github.com/dishapatel010/TgStory)`,
           parse_mode: "MARKDOWN",
           disable_web_page_preview: "True",
-          reply_to_message_id: message_id
+          reply_markup: wkeyboard
         }), {
           status: 200,
           headers: {
@@ -243,7 +300,7 @@ ${recentUpdates.join('\n')}
       JSON.stringify({
         method: "sendMessage",
         chat_id: chat.id,
-        text: `Your story has been uploaded successfully! Share the link with your friends:\n[TgStory](${storyi}${USERNAME})`,
+        text: `Your story has been uploaded successfully! [VIEW](https://t.me/Fstoriesbot/view?startapp=${USERNAME})\n\nShare the link with your friends: [SHARE](https://t.me/share/url?url=${storyi}${USERNAME}&text=Stories+in+Telegram+using+@Fstoriesbot)`,
         parse_mode: "MARKDOWN",
         disable_web_page_preview: "False",
         reply_to_message_id: message_id
@@ -271,129 +328,200 @@ ${recentUpdates.join('\n')}
       // Invalid URL
       return new Response(`<!DOCTYPE html>
 <html lang="en">
-  <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-        <title>Welcome to TG-Stories Bot</title>
-        <meta name="author" content="TG-Stories Bot">
-        <meta name="description" content="Share images & videos to Friends">
-        <meta property="og:title" content="TG-Stories Bot">
-        <meta property="og:description" content="Share images & videos to friends">
-        <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
-        <meta property="og:site_name" content="Nexiuo's" />
-        <meta property="og:type" content="article">
-        <meta property="og:locale" content="en_IN" />
-        <meta property="article:published_time" content="2023-03-12T21:55:52Z">
-        <meta property="article:author" content="TG-Stories Bot">
-        <meta property="article:publisher" content="TG-Stories Bot">
-        <meta property="article:section" content="Social Media">
-        <meta property="article:tag" content="Telegram">
-        <meta property="article:tag" content="Instant View">
-        <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
-        <meta property="article:tag" content="TG-Stories Bot">
-        <link rel="canonical" href="https://t.me/fstoriesbot">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Welcome to TG-Stories Bot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="author" content="TG-Stories Bot">
+    <meta name="description" content="Share images & videos to Friends">
+    <meta property="og:title" content="TG-Stories Bot">
+    <meta property="og:description" content="Share images & videos to friends">
+    <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
+    <meta property="og:site_name" content="Nexiuo's" />
+    <meta property="og:type" content="article">
+    <meta property="og:locale" content="en_IN" />
+    <meta property="article:published_time" content="2023-03-12T21:55:52Z">
+    <meta property="article:author" content="TG-Stories Bot">
+    <meta property="article:publisher" content="TG-Stories Bot">
+    <meta property="article:section" content="Social Media">
+    <meta property="article:tag" content="Telegram">
+    <meta property="article:tag" content="Instant View">
+    <meta property="tg:site_verification" content="g7j8/rPFXfhyrq5q0QQV7EsYWv4="/>
+    <meta property="article:tag" content="TG-Stories Bot">
+    <link rel="canonical" href="https://t.me/fstoriesbot">
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f2f2f2;
-        color: #222;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
+        :root {
+            --tg-theme-bg-color: #f2f2f2;
+            --tg-theme-text-color: #222;
+            --tg-theme-link-color: #0047ab;
+            --tg-theme-button-color: #0047ab;
+            --tg-theme-button-text-color: #fff;
+            --tg-theme-secondary-bg-color: #fff;
+            --tg-theme-header-bg-color: #222;
+        }
 
-      .container {
-        max-width: 800px;
-        margin: auto;
-        padding: 40px;
-        box-sizing: border-box;
-        background-color: #fff;
-        border-radius: 4px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-        color: #222;
-        flex-grow: 1;
-      }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-      h1,
-      p {
-        text-align: center;
-      }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            box-sizing: border-box;
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            color: var(--tg-theme-text-color);
+            flex-grow: 1;
+        }
 
-      h1 {
-        font-size: 48px;
-        color: #0047ab;
-      }
+        h1, p {
+            text-align: center;
+        }
 
-      p {
-        font-size: 24px;
-        margin-bottom: 20px;
-        line-height: 1.5;
-      }
+        h1 {
+            font-size: 36px;
+            color: var(--tg-theme-link-color);
+        }
 
-      button {
-        display: block;
-        margin: 0 auto;
-        padding: 10px 20px;
-        font-size: 24px;
-        color: #fff;
-        background-color: #0047ab;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
+        p {
+            font-size: 18px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
 
-      button:hover {
-        background-color: #002d5c;
-      }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            color: var(--tg-theme-button-text-color);
+            background-color: var(--tg-theme-button-color);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
 
-      footer {
-        color: #fff;
-        background-color: #222;
-        padding: 10px;
-        text-align: center;
-        font-size: 16px;
-      }
+        button:hover {
+            background-color: #002d5c;
+        }
 
-      footer a {
-        color: #fff;
-        text-decoration: none;
-      }
+        .guide {
+            margin-top: 40px;
+        }
 
-      footer.dark {
-        background-color: #111;
-      }
+        .guide h2 {
+            font-size: 30px;
+            color: var(--tg-theme-link-color);
+            text-align: center;
+        }
+
+        .guide ol {
+            font-size: 18px;
+            line-height: 1.6;
+            padding-left: 20px;
+        }
+
+        footer {
+            color: var(--tg-theme-button-text-color);
+            background-color: var(--tg-theme-header-bg-color);
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        footer a {
+            color: var(--tg-theme-button-text-color);
+            text-decoration: none;
+        }
     </style>
-  </head>
-
-  <body>
+</head>
+<body>
     <div class="container">
-      <h1>Welcome to TG-Stories Bot</h1>
-      <p>Tg-Story is a simple Telegram bot that allows you to easily share images and videos with your friends. The bot also supports usernames and instant view, allowing your friends to quickly access your content without having to leave the app.</p>
-      <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
+        <h1>Welcome to TG-Stories Bot</h1>
+        <p>TG-Stories is a Telegram bot for easily sharing images and videos with friends, supporting usernames and instant view for quick access within the app.</p>
+        <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
+        
+        <div class="guide">
+            <h2>How to Use TG-Stories Bot</h2>
+            <ol>
+                <li>Open Telegram and start a chat with <a href="https://telegram.dog/Fstoriesbot">@Fstoriesbot</a>.</li>
+                <li>Send the bot a photo or video that you want to share.</li>
+                <li>The bot will upload your media and provide you with a link to share with your friends.</li>
+                <li>You can view your stories by clicking on the "View Stories" button provided by the bot.</li>
+                <li>To delete all your stories, send the command <code>/delete</code> to the bot.</li>
+                <li>For more information about the bot, send the command <code>/about</code>.</li>
+                <li>To read the privacy policy, send the command <code>/privacy</code>.</li>
+            </ol>
+        </div>
     </div>
     <footer>
-      <p>&copy; 2023 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
+        <p>&copy; 2024 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
     </footer>
     <script>
-      const footer = document.querySelector('footer');
-      const body = document.querySelector('body');
+        document.addEventListener('DOMContentLoaded', (event) => {
+            if (window.Telegram && window.Telegram.WebApp) {
+                // Initialize theme
+                const themeParams = window.Telegram.WebApp.themeParams;
+                if (themeParams) {
+                    document.documentElement.style.setProperty('--tg-theme-bg-color', themeParams.bg_color || '#f2f2f2');
+                    document.documentElement.style.setProperty('--tg-theme-text-color', themeParams.text_color || '#222');
+                    document.documentElement.style.setProperty('--tg-theme-link-color', themeParams.link_color || '#0047ab');
+                    document.documentElement.style.setProperty('--tg-theme-button-color', themeParams.button_color || '#0047ab');
+                    document.documentElement.style.setProperty('--tg-theme-button-text-color', themeParams.button_text_color || '#fff');
+                    document.documentElement.style.setProperty('--tg-theme-secondary-bg-color', themeParams.secondary_bg_color || '#fff');
+                    document.documentElement.style.setProperty('--tg-theme-header-bg-color', themeParams.header_bg_color || '#222');
+                }
 
-      function toggleTheme() {
-        if (body.classList.contains('dark')) {
-          body.classList.remove('dark');
-          footer.classList.remove('dark');
-        } else {
-          body.classList.add('dark');
-          footer.classList.add('dark');
-        }
-      }
+                // Inform Telegram that the app is ready
+                window.Telegram.WebApp.ready();
 
-      footer.addEventListener('click', toggleTheme);
+                // Handle theme change
+                window.Telegram.WebApp.onEvent('themeChanged', () => {
+                    const themeParams = window.Telegram.WebApp.themeParams;
+                    document.documentElement.style.setProperty('--tg-theme-bg-color', themeParams.bg_color || '#f2f2f2');
+                    document.documentElement.style.setProperty('--tg-theme-text-color', themeParams.text_color || '#222');
+                    document.documentElement.style.setProperty('--tg-theme-link-color', themeParams.link_color || '#0047ab');
+                    document.documentElement.style.setProperty('--tg-theme-button-color', themeParams.button_color || '#0047ab');
+                    document.documentElement.style.setProperty('--tg-theme-button-text-color', themeParams.button_text_color || '#fff');
+                    document.documentElement.style.setProperty('--tg-theme-secondary-bg-color', themeParams.secondary_bg_color || '#fff');
+                    document.documentElement.style.setProperty('--tg-theme-header-bg-color', themeParams.header_bg_color || '#222');
+                });
+
+                // Handle redirection
+                const initDataUnsafe = window.Telegram.WebApp.initDataUnsafe;
+                const startParam = initDataUnsafe.start_param ? initDataUnsafe.start_param.toLowerCase() : null;
+                const user = initDataUnsafe.user;
+                const username = user.username ? user.username.toLowerCase() : null;
+                const userId = user.id;
+                const currentDomain = "https://story.viatg.workers.dev/";
+                const identifier = startParam || username || userId;
+                const redirectUrl = currentDomain + identifier;
+
+                // Show loading message
+                document.querySelector('.container').innerHTML = '<p>Loading...</p>';
+
+                // Redirect to the URL
+                window.location.href = redirectUrl;
+            } else {
+                console.error('Telegram WebApp is not available');
+                document.querySelector('.container').innerHTML = '<p>Error: Telegram WebApp is not available.</p>';
+            }
+        });
     </script>
-  </body>
-</html>`, {
+</body>
+</html>
+`, {
         headers: {
           'Content-Type': 'text/html'
         },
@@ -504,28 +632,29 @@ ${recentUpdates.join('\n')}
 
   <body>
     <div class="container">
-      <h1>Welcome to TG-Stories Bot</h1>
-      <p>Tg-Story is a simple Telegram bot that allows you to easily share images and videos with your friends. The bot also supports usernames and instant view, allowing your friends to quickly access your content without having to leave the app.</p>
-      <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
+        <h1>Welcome to TG-Stories Bot</h1>
+        <p>Tg-Story is a Telegram bot for easily sharing images and videos with friends, supporting usernames and instant view for quick access within the app.</p>
+        <button onClick="window.location.href='https://telegram.dog/Fstoriesbot'">Start Sharing</button>
+        
+        <div class="guide">
+            <h2>How to Use TG-Stories Bot</h2>
+            <ol>
+                <li>Open Telegram and start a chat with <a href="https://telegram.dog/Fstoriesbot">@Fstoriesbot</a>.</li>
+                <li>Send the bot a photo or video that you want to share.</li>
+                <li>The bot will upload your media and provide you with a link to share with your friends.</li>
+                <li>You can view your stories by clicking on the "View Stories" button provided by the bot.</li>
+                <li>To delete all your stories, send the command <code>/delete</code> to the bot.</li>
+                <li>For more information about the bot, send the command <code>/about</code>.</li>
+                <li>To read the privacy policy, send the command <code>/privacy</code>.</li>
+            </ol>
+        </div>
     </div>
     <footer>
-      <p>&copy; 2023 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
+        <p>&copy; 2024 TG-Stories Bot &bull; <a href="https://github.com/dishapatel010/TgStory">Source Code</a></p>
     </footer>
     <script>
       const footer = document.querySelector('footer');
       const body = document.querySelector('body');
-
-      function toggleTheme() {
-        if (body.classList.contains('dark')) {
-          body.classList.remove('dark');
-          footer.classList.remove('dark');
-        } else {
-          body.classList.add('dark');
-          footer.classList.add('dark');
-        }
-      }
-
-      footer.addEventListener('click', toggleTheme);
     </script>
   </body>
 </html>`, {
@@ -621,9 +750,6 @@ ${recentUpdates.join('\n')}
               ></amp-img>
             </div>
           </amp-story-grid-layer>
-          <amp-story-page-outlink layout="nodisplay">
-    <a href="https://github.com/dishapatel010/TgStory">Tg-Story</a>
-</amp-story-page-outlink>
         </amp-story-page>
       `;
           }
@@ -728,7 +854,6 @@ ${recentUpdates.join('\n')}
       <meta property="og:image" content="https://graph.org/file/254f49876c30307a36db7.png">
       <meta property="og:url" content="https://github.com/dishapatel010/TgStory">
       <meta property="og:type" content="website">
-      <link rel="canonical" href="https://github.com/dishapatel010/TgStory">
       <script async src="https://cdn.ampproject.org/v0.js"></script>
       <script async custom-element="amp-video" src="https://cdn.ampproject.org/v0/amp-video-0.1.js"></script>
       <script async custom-element="amp-image-lightbox" src="https://cdn.ampproject.org/v0/amp-image-lightbox-0.1.js"></script>
